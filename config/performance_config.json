@@ -1,0 +1,24 @@
+{
+  "pipeline": {
+    "batch_size": 20000,
+    "workers": 4,
+    "max_timeline_events": 2000
+  },
+  "ingestion": {
+    "recursive": true,
+    "allowed_extensions": [".log", ".txt", ".json", ".jsonl", ".csv", ".xml", ".evtx"]
+  },
+  "analysis": {
+    "brute_force_window_seconds": 300,
+    "brute_force_threshold": 5,
+    "spike_bucket_seconds": 60,
+    "spike_multiplier": 3.0,
+    "min_spike_events": 1000,
+    "suspicious_status_codes": [401, 403, 404, 429, 500],
+    "suspicious_keywords": ["failed", "failure", "denied", "invalid", "malware", "ransomware", "powershell", "mimikatz"]
+  },
+  "reporting": {
+    "title": "Relatorio Tecnico de Analise de Logs",
+    "analyst": "SOC / DFIR Team"
+  }
+}

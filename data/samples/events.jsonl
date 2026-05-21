@@ -1,0 +1,2 @@
+{"timestamp":"2026-05-21T10:05:00Z","src_ip":"10.10.5.20","username":"svc-backup","message":"powershell encoded command observed","action":"process_start"}
+{"timestamp":"2026-05-21T10:05:05Z","src_ip":"10.10.5.20","username":"svc-backup","message":"mimikatz keyword detected in command line","action":"process_start"}
