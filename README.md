@@ -76,7 +76,7 @@ O objetivo do LogIntel Pipeline é simplificar esse fluxo, oferecendo uma base m
 # Instalação
 
 Clone o repositório
-git clone https://github.com/seu-usuario/logintel-pipeline.git
+git clone https://github.com/mateusm1403/logintel-pipeline.git
 
 cd logintel-pipeline
 
