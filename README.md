@@ -71,6 +71,7 @@ O objetivo do LogIntel Pipeline é simplificar esse fluxo, oferecendo uma base m
 ├── tests/
 ├── main.py
 └── requirements.txt
+```
 
 # Instalação
 
