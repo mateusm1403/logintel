@@ -14,6 +14,30 @@ class PipelineConfig:
 
 
 @dataclass(slots=True)
+class CsvAnalysisConfig:
+    chunksize: int = 50000
+    top_n: int = 10
+    timestamp_bucket: str = "5min"
+    brute_force_threshold: int = 5
+    brute_force_window: str = "5min"
+    suspicious_keywords: set[str] = field(
+        default_factory=lambda: {
+            "failed",
+            "failure",
+            "denied",
+            "invalid",
+            "malware",
+            "ransomware",
+            "powershell",
+            "mimikatz",
+            "credential",
+            "exploit",
+            "blocked",
+        }
+    )
+
+
+@dataclass(slots=True)
 class IngestionConfig:
     recursive: bool = True
     allowed_extensions: set[str] = field(
@@ -43,6 +67,7 @@ class ReportingConfig:
 @dataclass(slots=True)
 class AppConfig:
     pipeline: PipelineConfig = field(default_factory=PipelineConfig)
+    csv_analysis: CsvAnalysisConfig = field(default_factory=CsvAnalysisConfig)
     ingestion: IngestionConfig = field(default_factory=IngestionConfig)
     analysis: AnalysisConfig = field(default_factory=AnalysisConfig)
     reporting: ReportingConfig = field(default_factory=ReportingConfig)
@@ -53,8 +78,17 @@ def load_config(path: Path) -> AppConfig:
         raise FileNotFoundError(f"Arquivo de configuracao nao encontrado: {path}")
 
     raw = _load_mapping(path)
+    csv_raw = raw.get("csv_analysis", {})
     return AppConfig(
         pipeline=PipelineConfig(**raw.get("pipeline", {})),
+        csv_analysis=CsvAnalysisConfig(
+            chunksize=csv_raw.get("chunksize", 50000),
+            top_n=csv_raw.get("top_n", 10),
+            timestamp_bucket=csv_raw.get("timestamp_bucket", "5min"),
+            brute_force_threshold=csv_raw.get("brute_force_threshold", 5),
+            brute_force_window=csv_raw.get("brute_force_window", "5min"),
+            suspicious_keywords=set(csv_raw.get("suspicious_keywords", [])) or CsvAnalysisConfig().suspicious_keywords,
+        ),
         ingestion=IngestionConfig(
             recursive=raw.get("ingestion", {}).get("recursive", True),
             allowed_extensions=set(raw.get("ingestion", {}).get("allowed_extensions", [])) or IngestionConfig().allowed_extensions,
