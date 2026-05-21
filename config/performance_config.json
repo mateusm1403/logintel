@@ -4,6 +4,14 @@
     "workers": 4,
     "max_timeline_events": 2000
   },
+  "csv_analysis": {
+    "chunksize": 250000,
+    "top_n": 25,
+    "timestamp_bucket": "5min",
+    "brute_force_threshold": 10,
+    "brute_force_window": "5min",
+    "suspicious_keywords": ["failed", "failure", "denied", "invalid", "malware", "ransomware", "powershell", "mimikatz", "credential", "exploit", "blocked"]
+  },
   "ingestion": {
     "recursive": true,
     "allowed_extensions": [".log", ".txt", ".json", ".jsonl", ".csv", ".xml", ".evtx"]

@@ -1,109 +1,74 @@
 # Arquitetura do LogIntel Pipeline
 
-## Visão geral
+## Visao geral
 
 O sistema foi separado em camadas pequenas para permitir troca de componentes sem reescrever o pipeline:
 
-* ingestion: descoberta de arquivos e leitura streaming.
-* parsing: reconhecimento de formato e conversão para dicionário.
-* normalization: criação do modelo canônico NormalizedEvent.
-* enrichment: extração de IOCs e metadados.
-* correlation: estado incremental por IP, usuário, tipo e janela temporal.
-* analysis: detectores, MITRE ATT&CK e regras Sigma simplificadas.
-* export: escrita de relatórios em JSON, Markdown e HTML.
-* pipeline: orquestração, batching e paralelismo opcional.
-
-O foco da arquitetura é processar milhões de linhas com baixo consumo de memória, usando leitura em streaming, lotes configuráveis, parsers modulares e análises incrementais.
-
-## Capacidades
-
-Ingestão de arquivos grandes sem carregar tudo em memória
-
-Suporte inicial a JSON, CSV, TXT, Syslog, Apache/Nginx, XML e EVTX
-
-Normalização para um modelo comum de eventos
-
-Enriquecimento com extração de IOCs
-
-Correlação temporal e agrupamento por entidades
-
-Detecção de brute force, IPs suspeitos e picos anormais
-
-Timeline de eventos
-
-Mapeamento MITRE ATT&CK simplificado
-
-Base para Sigma rules
-
-Exportação em JSON, Markdown e HTML
-
-PDF planejado para versão futura
-
-## Decisões arquiteturais
-
-Streaming primeiro: arquivos são lidos linha a linha ou por documento, evitando listas gigantes em memória.
-
-Lotes configuráveis: o pipeline processa eventos em batches para equilibrar throughput e memória.
-
-Modelo canônico: todo log vira NormalizedEvent, reduzindo acoplamento entre parser e detector.
-
-Parsers independentes: novos formatos podem ser adicionados sem alterar o pipeline.
-
-Detecções incrementais: detectores usam contadores e janelas pequenas, adequados para grande volume.
-
-Exportadores separados: relatórios podem evoluir sem tocar na lógica de análise.
-
-Dependências mínimas: EVTX usa python-evtx quando instalado; o restante funciona com biblioteca padrão.
-
-## Possíveis gargalos
-Regex em linhas muito longas ou formatos não reconhecidos.
-
-Ordenação global de timeline quando o volume for muito alto.
-
-Correlação temporal com janelas grandes demais.
-
-Exportação HTML/Markdown muito extensa para datasets gigantes.
-
-EVTX pode ser mais custoso por exigir parsing estruturado.
+- `ingestion`: descoberta de arquivos e leitura streaming.
+- `parsing`: reconhecimento de formato e conversao para dicionario.
+- `normalization`: criacao do modelo canonico `NormalizedEvent`.
+- `enrichment`: extracao de IOCs e metadados.
+- `correlation`: estado incremental por IP, usuario, tipo e janela temporal.
+- `analysis`: detectores, MITRE ATT&CK e regras Sigma simplificadas.
+- `csv_analysis`: motor Pandas para analise tabular de exports CSV.
+- `export`: escrita de relatorios em JSON, Markdown e HTML.
+- `pipeline`: orquestracao, batching e paralelismo opcional.
 
 ## Fluxo de dados
 
 ```text
 Raw files -> RawLogRecord -> ParsedEvent -> NormalizedEvent -> Findings -> Reports
-
 ```
 
-Cada etapa recebe objetos tipados e retorna objetos tipados. Isso reduz hardcode e facilita testes unitários por camada.
+Fluxo CSV:
 
-## Performance e memória
+```text
+CSV file -> Pandas chunks -> normalized DataFrame columns -> aggregate state -> CSV findings -> CSV reports
+```
 
-O ingestor lê arquivos linha a linha para formatos textuais. XML e EVTX exigem cuidado adicional porque podem representar documentos grandes; em produção, a recomendação é quebrar XML grande por evento ou converter EVTX para JSON/XML previamente em workers dedicados.
+Cada etapa recebe objetos tipados e retorna objetos tipados. Isso reduz hardcode e facilita testes unitarios por camada.
 
-O batch_size controla quantos registros ficam em memória por vez. A timeline é limitada por max_timeline_events, evitando que o relatório tente carregar todo o dataset.
+## Performance e memoria
+
+O ingestor le arquivos linha a linha para formatos textuais. XML e EVTX exigem cuidado adicional porque podem representar documentos grandes; em producao, a recomendacao e quebrar XML grande por evento ou converter EVTX para JSON/XML previamente em workers dedicados.
+
+O `batch_size` controla quantos registros ficam em memoria por vez. A timeline e limitada por `max_timeline_events`, evitando que o relatorio tente carregar todo o dataset.
+
+No modo CSV, `csv_analysis.chunksize` controla quantas linhas o Pandas carrega por iteracao. O estado final mantem apenas contadores agregados, janelas temporais e achados, evitando reter o DataFrame completo em memoria.
 
 ## Paralelismo
 
-Quando pipeline.workers for maior que 1, o processamento de registros do batch usa ProcessPoolExecutor. Isso ajuda em parsing CPU-bound e regex pesada. Para arquivos pequenos, workers=1 costuma ser mais rápido por evitar overhead de processos.
+Quando `pipeline.workers` for maior que 1, o processamento de registros do batch usa `ProcessPoolExecutor`. Isso ajuda em parsing CPU-bound e regex pesada. Para arquivos pequenos, `workers=1` costuma ser mais rapido por evitar overhead de processos.
 
-## Extensão de parsers
+## Extensao de parsers
 
 Para adicionar um formato:
 
-1. Criar uma classe em src/logintel/parsing/.
-2. Herdar de BaseParser.
-3. Implementar can_parse e parse.
-4. Registrar a classe em ParserRegistry.
+1. Criar uma classe em `src/logintel/parsing/`.
+2. Herdar de `BaseParser`.
+3. Implementar `can_parse` e `parse`.
+4. Registrar a classe em `ParserRegistry`.
 
-## Extensão de detecções
+## Extensao de deteccoes
 
-Detectores devem expor observe(event) ou evaluate(state), retornando lista de Finding. Isso permite detecções stateful sem acoplar regras ao pipeline principal.
+Detectores devem expor `observe(event)` ou `evaluate(state)`, retornando lista de `Finding`. Isso permite deteccoes stateful sem acoplar regras ao pipeline principal.
 
-## Estratégia distribuída futura
+## Analise CSV com Pandas
 
-Em grande escala, o desenho permite substituir etapas locais por componentes distribuídos:
+O subpacote `csv_analysis` tem tres responsabilidades principais:
 
-* Ingestão por Kafka/SQS/RabbitMQ.
-* Normalização em workers independentes.
-* Estado de correlação em Redis, ClickHouse, Flink ou banco time-series.
-* Persistência de eventos em Parquet, DuckDB ou data lake.
-* Exportação de achados para SIEM/SOAR.
+- `columns.py`: normaliza aliases de colunas vindos de SIEM, EDR, Windows Events, CrowdStrike, Sentinel, Wazuh, Splunk e ferramentas similares.
+- `engine.py`: le CSV com `pandas.read_csv(..., chunksize=...)`, aplica filtros, groupby, contadores e janelas.
+- `models.py`: define `CsvAnalysisSummary` e `CsvFinding`, usados pelo exportador dedicado.
+
+Esse caminho nao substitui o pipeline streaming. Ele e uma rota analitica para quando o dado ja chega estruturado em CSV e se beneficia de agregacoes vetorizadas.
+
+## Estrategia distribuida futura
+
+Em grande escala, o desenho permite substituir etapas locais por componentes distribuidos:
+
+- Ingestao por Kafka/SQS/RabbitMQ.
+- Normalizacao em workers independentes.
+- Estado de correlacao em Redis, ClickHouse, Flink ou banco time-series.
+- Persistencia de eventos em Parquet, DuckDB ou data lake.
+- Exportacao de achados para SIEM/SOAR.

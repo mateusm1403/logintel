@@ -18,7 +18,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Processamento massivo de logs para SOC, DFIR e threat hunting."
     )
-    parser.add_argument("--input", required=True, help="Arquivo ou diretorio com logs brutos.")
+    parser.add_argument("--input", help="Arquivo ou diretorio com logs brutos.")
+    parser.add_argument("--csv", help="Arquivo CSV de eventos de seguranca para analise com Pandas.")
     parser.add_argument("--output", default="output", help="Diretorio de saida dos relatorios.")
     parser.add_argument("--config", default="config/default_config.json", help="Arquivo JSON/YAML de configuracao.")
     parser.add_argument("--log-level", default="INFO", help="Nivel de logging interno.")
@@ -30,6 +31,19 @@ def main() -> int:
     setup_logging(args.log_level)
 
     config: AppConfig = load_config(Path(args.config))
+    if args.csv:
+        from logintel.csv_analysis.engine import CsvAnalysisEngine
+
+        engine = CsvAnalysisEngine(config.csv_analysis, config.reporting)
+        summary = engine.run(Path(args.csv), Path(args.output))
+        print(f"Linhas processadas: {summary.total_rows}")
+        print(f"Achados: {len(summary.findings)}")
+        print(f"Relatorios CSV em: {Path(args.output).resolve()}")
+        return 0
+
+    if not args.input:
+        build_parser().error("informe --input para logs brutos ou --csv para analise tabular com Pandas")
+
     engine = PipelineEngine(config)
     summary = engine.run(Path(args.input), Path(args.output))
 
