@@ -41,6 +41,7 @@ O objetivo do LogIntel Pipeline é simplificar esse fluxo, oferecendo uma base m
 - Nginx Logs
 - XML
 - EVTX
+- CSV
 
 ---
 
@@ -52,10 +53,13 @@ O objetivo do LogIntel Pipeline é simplificar esse fluxo, oferecendo uma base m
 │   └── default_config.json
 ├── data/
 │   └── samples/
-├── docs/
-│   └── architecture.md
+│       ├── apache_access.log
+│       ├── auth.log
+│       ├── events.jsonl
+│       └── windows.xml
 ├── reports/
 │   └── templates/
+│       └── final_report.md
 ├── src/
 │   └── logintel/
 │       ├── analysis/
@@ -67,11 +71,22 @@ O objetivo do LogIntel Pipeline é simplificar esse fluxo, oferecendo uma base m
 │       ├── parsing/
 │       ├── pipeline/
 │       └── utils/
-├── output/
-├── tests/
 ├── main.py
 └── requirements.txt
 ```
+
+# Analise CSV com Pandas
+O modo --csv usa Pandas como motor analitico e processa arquivos em chunks configuraveis por csv_analysis.chunksize. Ele foi criado para exports de Wazuh, Splunk, SIEMs, firewalls, EDR/XDR, Windows Events, CrowdStrike, Microsoft Sentinel, Zabbix e Elastic Stack.
+
+O motor normaliza automaticamente aliases comuns de colunas, por exemplo source_ip, srcip e source.ip viram src_ip; user, accountname e user.name viram username; _time, @timestamp e event_time viram timestamp.
+
+As analises atuais incluem:
+
+top-N por IP de origem/destino, usuario, host, severidade, tipo de evento, acao e status code
+contagem temporal por janela
+deteccao de brute force por origem/usuario/janela
+deteccao de keywords suspeitas
+identificacao de picos anormais de volume
 
 # Instalação
 
@@ -168,3 +183,4 @@ Recomendado:
 Python 3.11 ou 3.12 (apenas por questão de estabilidade, você pode testar em outras versões)
 VSCode + extensão Python
 Ambiente virtual (venv) isolado
+Frameworks em requirements.txt 
